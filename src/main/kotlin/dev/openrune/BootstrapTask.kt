@@ -159,7 +159,7 @@ class BootstrapTask(
                 }, "macos")
             }
         }
-        return BootstrapManifest.Artifacts(hash(file.readBytes()), file.name, path, file.length(), platform)
+        return BootstrapManifest.Artifacts(hash(file.readBytes()), file.name, path, file.length(), if (platform.isEmpty()) null else platform)
     }
 
     private fun hash(file: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(file).joinToString("") { "%02x".format(it) }
