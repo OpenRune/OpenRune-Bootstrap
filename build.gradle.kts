@@ -31,8 +31,6 @@ dependencies {
     implementation("org.slf4j:slf4j-api:1.7.36")
     implementation("commons-net:commons-net:3.10.0")
 
-
-
 }
 
 
@@ -73,13 +71,27 @@ gradlePlugin {
 }
 
 publishing {
+    repositories {
+
+        maven {
+            url = uri("$buildDir/repo")
+        }
+        if (System.getenv("REPO_URL") != null) {
+            maven {
+                url = uri(System.getenv("REPO_URL"))
+                credentials {
+                    username = System.getenv("REPO_USERNAME")
+                    password = System.getenv("REPO_PASSWORD")
+                }
+            }
+        }
+    }
+
+
     publications {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
         }
     }
-    repositories {
-        // Publish to the local Maven repository
-        mavenLocal()
-    }
 }
+
