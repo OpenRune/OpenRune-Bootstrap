@@ -27,6 +27,7 @@ class BootstrapPlugin : Plugin<Project> {
         project.tasks.register("publishClientLive") {
             group = "client update"
             description = "Publishes Client to your ftp or aws"
+            dependsOn("generateFiles")
             doLast {
                 BootstrapTask(extension, project).init()
             }
