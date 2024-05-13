@@ -145,21 +145,42 @@ class BootstrapTask(
     }
 
     private suspend fun processArtifact(artifact: ResolvedArtifact, customPath: String = ""): BootstrapManifest.Artifacts {
-        val path = if (customPath.isNotEmpty()) customPath + artifact.file.name else getArtifactURL(artifact)
+        val (group, name, version) = artifact.moduleVersion.id.toString().split(":")
+        var path = if (customPath.isNotEmpty()) customPath + artifact.file.name else getArtifactURL(artifact,name)
         val file = artifact.file
-        val platform: MutableList<BootstrapManifest.Platform> = mutableListOf()
-        artifact.classifier.orEmpty().lowercase().also { classifier ->
-            when {
-                "linux" in classifier -> platform += BootstrapManifest.Platform(null, "linux")
-                "windows" in classifier -> platform += BootstrapManifest.Platform(if ("amd64" in classifier) "amd64" else "x86", "windows")
-                "macos" in classifier -> platform += BootstrapManifest.Platform(when {
-                    "x64" in classifier -> "x86_64"
-                    "arm64" in classifier -> "aarch64"
-                    else -> null
-                }, "macos")
+        var platform: MutableList<BootstrapManifest.Platform>? = null
+        if (artifact.classifier != null && group == "runelite") {
+            platform = emptyList<BootstrapManifest.Platform>().toMutableList()
+
+            if (artifact.classifier!!.contains("linux")) {
+                platform.add(BootstrapManifest.Platform(null,"linux"))
+            } else if (artifact.classifier!!.contains("windows")) {
+
+                val arch = if (artifact.classifier!!.contains("amd64")) {
+                    "amd64"
+                } else {
+                    "x86"
+                }
+                platform.add(BootstrapManifest.Platform(arch,"windows"))
+            } else if (artifact.classifier!!.contains("macos")) {
+
+                val arch = if (artifact.classifier!!.contains("x64")) {
+                    "x86_64"
+                } else if (artifact.classifier!!.contains("arm64")) {
+                    "aarch64"
+                } else {
+                    null
+                }
+                platform.add(BootstrapManifest.Platform(arch,"macos"))
+            }
+        } else {
+            artifact.classifier?.let {
+                if (it != "no_aop") {
+                    path = path.replace(".jar", "-${it}.jar")
+                }
             }
         }
-        return BootstrapManifest.Artifacts(hash(file.readBytes()), file.name, path, file.length(), if (platform.isEmpty()) null else platform)
+        return BootstrapManifest.Artifacts(hash(file.readBytes()), file.name, path, file.length(), platform)
     }
 
     private fun hash(file: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(file).joinToString("") { "%02x".format(it) }
@@ -198,22 +219,31 @@ class BootstrapTask(
         return ArtifactsData(localArtifacts, onlineArtifacts, fileArtifacts)
     }
 
-    private suspend fun getArtifactURL(artifact: ResolvedArtifact): String {
+    private suspend fun getArtifactURL(artifact: ResolvedArtifact, name : String): String {
         val module = artifact.moduleVersion.id.toString()
         val (group, name, version) = module.split(":")
         val groupPath = group.replace('.', '/')
         val artifactFileName = "$name-$version.jar"
         val filePath = "$groupPath/$name/$version/$artifactFileName"
-        return findFileInRepos(filePath) ?: ""
+        return findFileInRepos(filePath,name) ?: ""
     }
 
-    private suspend fun findFileInRepos(filePath: String): String? = coroutineScope {
-        listOf(
+    private suspend fun findFileInRepos(filePath: String, name: String): String? = coroutineScope {
+        if ("lwjgl" in name) {
+            return@coroutineScope "https://repo.maven.apache.org/maven2/$filePath"
+        }
+
+        // List of repositories to check
+        val repositories = listOf(
             "https://repo.runelite.net/",
             "https://repo.maven.apache.org/maven2/"
-        ).map { repo ->
+        )
+
+        // Asynchronously check each repository and return the first that contains the file
+        repositories.map { repo ->
             async {
-                (repo + filePath).takeIf { fileExists(it) }
+                val fullPath = "$repo$filePath"
+                fullPath.takeIf { fileExists(it) }
             }
         }.awaitAll().firstOrNull { it != null }
     }
