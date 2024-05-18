@@ -147,6 +147,10 @@ class BootstrapTask(
     private suspend fun processArtifact(artifact: ResolvedArtifact, customPath: String = ""): BootstrapManifest.Artifacts {
         val (group, name, version) = artifact.moduleVersion.id.toString().split(":")
         var path = if (customPath.isNotEmpty()) customPath + artifact.file.name else getArtifactURL(artifact,name)
+        if(path.isEmpty()) {
+            println("Using Fallbacks Path")
+            path = fallbackPath(artifact)
+        }
         val file = artifact.file
         var platform: MutableList<BootstrapManifest.Platform>? = null
         if (artifact.classifier != null && group == "runelite") {
@@ -181,6 +185,51 @@ class BootstrapTask(
             }
         }
         return BootstrapManifest.Artifacts(hash(file.readBytes()), file.name, path, file.length(), platform)
+    }
+
+    private fun fallbackPath(it : ResolvedArtifact) : String {
+        val module = it.moduleVersion.id.toString()
+        val splat = module.split(":")
+        val name = splat[1]
+        val group = splat[0]
+        val version = splat[2]
+        var path = ""
+
+        if (it.file.name.contains("runelite-client") ||
+            it.file.name.contains("http-api") ||
+            it.file.name.contains("runescape-api") ||
+            it.file.name.contains("runelite-api") ||
+            it.file.name.contains("runelite-jshell")) {
+            path = "https://github.com/open-osrs/hosting/raw/master/${extension.buildType.get()}/${it.file.name}"
+        } else if (it.file.name.contains("injection-annotations")) {
+            path = "https://github.com/open-osrs/hosting/raw/master/" + group.replace(".", "/") + "/${name}/$version/${it.file.name}"
+        } else if (!group.contains("runelite")) {
+            path = "https://repo.maven.apache.org/maven2/" + group.replace(".", "/") + "/${name}/$version/${name}-$version"
+            if (it.classifier != null && it.classifier != "no_aop") {
+                path += "-${it.classifier}"
+            }
+            path += ".jar"
+        } else if (
+            it.file.name.contains("trident") ||
+            it.file.name.contains("discord") ||
+            it.file.name.contains("substance") ||
+            it.file.name.contains("gluegen") ||
+            it.file.name.contains("jogl") ||
+            it.file.name.contains("flatlaf") ||
+            it.file.name.contains("rlawt") ||
+            it.file.name.contains("jocl")
+        ) {
+            path = "https://repo.runelite.net/"
+            path += "${group.replace(".", "/")}/${name}/$version/${name}-$version"
+
+            if (it.classifier != null) {
+                path += "-${it.classifier}"
+            }
+            path += ".jar"
+        } else {
+            path = ""
+        }
+        return path
     }
 
     private fun hash(file: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(file).joinToString("") { "%02x".format(it) }

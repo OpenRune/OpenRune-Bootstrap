@@ -23,7 +23,6 @@ class BootstrapPlugin : Plugin<Project> {
     }
 
     private fun registerPublishClientLiveTask(project: Project, extension: BootstrapPluginExtension) {
-        // Register the 'publishClientLive' task
         project.tasks.register("publishClientLive") {
             group = "client update"
             description = "Publishes Client to your ftp or aws"
