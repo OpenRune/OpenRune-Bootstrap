@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "dev.openrune"
-version = "1.3"
+version = "1.5"
 
 repositories {
     mavenCentral()

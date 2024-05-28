@@ -3,6 +3,7 @@ package dev.openrune.settings
 import dev.openrune.upload.ftp.FtpUploadSettings
 import dev.openrune.upload.github.GithubUploadSettings
 import org.gradle.api.Project
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import java.io.File
 
@@ -34,6 +35,9 @@ open class BootstrapPluginExtension(project: Project) {
 
     // Store Old Versions of your client based on version in your build config
     val storeOldVersions: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+
+    // Assuming you are within a Gradle task or similar context
+    val runeliteArtifacts: ListProperty<String> = objects.listProperty(String::class.java).convention(emptyList())
 
     // Replace the default bootstrap template with a custom one
     val bootstrapTemplate: Property<File> = objects.property(File::class.java).convention(File("na"))

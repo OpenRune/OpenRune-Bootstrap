@@ -32,6 +32,12 @@ class BootstrapTask(
 ) {
     private val httpClient = HttpClient(CIO)
 
+    val runeliteArtifacts = listOf("trident", "discord", "substance", "gluegen", "jogl", "flatlaf", "rlawt", "jocl").toMutableList()
+
+    fun fileNameContainsRuneliteArtifacts(fileName: String): Boolean {
+        return runeliteArtifacts.any { fileName.contains(it, ignoreCase = true) }
+    }
+
     fun init(upload: Boolean = true) = runBlocking {
         project.logger.lifecycle("Initialization started with upload set to $upload")
 
@@ -51,6 +57,8 @@ class BootstrapTask(
         val defaultBootstrap = getDefaultBootstrap()
         project.logger.lifecycle("Collecting artifacts")
         val allArtifacts = getArtifacts()
+
+        runeliteArtifacts.addAll(extension.runeliteArtifacts.get())
 
         val projectVersion = project.version.toString()
         val storeInVersions = extension.storeOldVersions.get() && projectVersion != "unspecified"
@@ -146,90 +154,73 @@ class BootstrapTask(
 
     private suspend fun processArtifact(artifact: ResolvedArtifact, customPath: String = ""): BootstrapManifest.Artifacts {
         val (group, name, version) = artifact.moduleVersion.id.toString().split(":")
-        var path = if (customPath.isNotEmpty()) customPath + artifact.file.name else getArtifactURL(artifact,name)
-        if(path.isEmpty()) {
-            println("Using Fallbacks Path")
-            path = fallbackPath(artifact)
-        }
+        var path = if (customPath.isNotEmpty()) customPath + artifact.file.name else ""
+
         val file = artifact.file
         var platform: MutableList<BootstrapManifest.Platform>? = null
-        if (artifact.classifier != null && group == "runelite") {
-            platform = emptyList<BootstrapManifest.Platform>().toMutableList()
-
-            if (artifact.classifier!!.contains("linux")) {
-                platform.add(BootstrapManifest.Platform(null,"linux"))
-            } else if (artifact.classifier!!.contains("windows")) {
-
-                val arch = if (artifact.classifier!!.contains("amd64")) {
-                    "amd64"
-                } else {
-                    "x86"
-                }
-                platform.add(BootstrapManifest.Platform(arch,"windows"))
-            } else if (artifact.classifier!!.contains("macos")) {
-
-                val arch = if (artifact.classifier!!.contains("x64")) {
-                    "x86_64"
-                } else if (artifact.classifier!!.contains("arm64")) {
-                    "aarch64"
-                } else {
-                    null
-                }
-                platform.add(BootstrapManifest.Platform(arch,"macos"))
-            }
-        } else {
-            artifact.classifier?.let {
-                if (it != "no_aop") {
-                    path = path.replace(".jar", "-${it}.jar")
-                }
-            }
+        if (path == "") {
+            val fallback = fallbackPath(artifact)
+            path = fallback.first
+            platform = fallback.second
         }
+
         return BootstrapManifest.Artifacts(hash(file.readBytes()), file.name, path, file.length(), platform)
     }
 
-    private fun fallbackPath(it : ResolvedArtifact) : String {
+
+    private fun fallbackPath(it : ResolvedArtifact) : Pair<String, MutableList<BootstrapManifest.Platform>?> {
         val module = it.moduleVersion.id.toString()
         val splat = module.split(":")
         val name = splat[1]
         val group = splat[0]
         val version = splat[2]
         var path = ""
+        var platform : MutableList<BootstrapManifest.Platform>? = null
 
-        if (it.file.name.contains("runelite-client") ||
-            it.file.name.contains("http-api") ||
-            it.file.name.contains("runescape-api") ||
-            it.file.name.contains("runelite-api") ||
-            it.file.name.contains("runelite-jshell")) {
-            path = "https://github.com/open-osrs/hosting/raw/master/${extension.buildType.get()}/${it.file.name}"
-        } else if (it.file.name.contains("injection-annotations")) {
-            path = "https://github.com/open-osrs/hosting/raw/master/" + group.replace(".", "/") + "/${name}/$version/${it.file.name}"
-        } else if (!group.contains("runelite")) {
+        if (!group.contains("runelite")) {
             path = "https://repo.maven.apache.org/maven2/" + group.replace(".", "/") + "/${name}/$version/${name}-$version"
             if (it.classifier != null && it.classifier != "no_aop") {
                 path += "-${it.classifier}"
             }
             path += ".jar"
-        } else if (
-            it.file.name.contains("trident") ||
-            it.file.name.contains("discord") ||
-            it.file.name.contains("substance") ||
-            it.file.name.contains("gluegen") ||
-            it.file.name.contains("jogl") ||
-            it.file.name.contains("flatlaf") ||
-            it.file.name.contains("rlawt") ||
-            it.file.name.contains("jocl")
-        ) {
+        } else if(fileNameContainsRuneliteArtifacts(it.file.name)) {
             path = "https://repo.runelite.net/"
             path += "${group.replace(".", "/")}/${name}/$version/${name}-$version"
 
             if (it.classifier != null) {
                 path += "-${it.classifier}"
+
+                if (platform == null) {
+                    platform = emptyList<BootstrapManifest.Platform>().toMutableList()
+                }
+
+                if (it.classifier!!.contains("linux")) {
+                    platform.add(BootstrapManifest.Platform(null, "linux"))
+                } else if (it.classifier!!.contains("windows")) {
+
+                    val arch = if (it.classifier!!.contains("amd64")) {
+                        "amd64"
+                    } else {
+                        "x86"
+                    }
+                    platform.add(BootstrapManifest.Platform(arch, "windows"))
+                } else if (it.classifier!!.contains("macos")) {
+
+                    val arch = if (it.classifier!!.contains("x64")) {
+                        "x86_64"
+                    } else if (it.classifier!!.contains("arm64")) {
+                        "aarch64"
+                    } else {
+                        null
+                    }
+                    platform.add(BootstrapManifest.Platform(arch, "macos"))
+                }
             }
             path += ".jar"
         } else {
             path = ""
         }
-        return path
+        return Pair(path,platform)
     }
 
     private fun hash(file: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(file).joinToString("") { "%02x".format(it) }
@@ -266,44 +257,6 @@ class BootstrapTask(
         }
 
         return ArtifactsData(localArtifacts, onlineArtifacts, fileArtifacts)
-    }
-
-    private suspend fun getArtifactURL(artifact: ResolvedArtifact, name : String): String {
-        val module = artifact.moduleVersion.id.toString()
-        val (group, name, version) = module.split(":")
-        val groupPath = group.replace('.', '/')
-        val artifactFileName = "$name-$version.jar"
-        val filePath = "$groupPath/$name/$version/$artifactFileName"
-        return findFileInRepos(filePath,name) ?: ""
-    }
-
-    private suspend fun findFileInRepos(filePath: String, name: String): String? = coroutineScope {
-        if ("lwjgl" in name) {
-            return@coroutineScope "https://repo.maven.apache.org/maven2/$filePath"
-        }
-
-        // List of repositories to check
-        val repositories = listOf(
-            "https://repo.runelite.net/",
-            "https://repo.maven.apache.org/maven2/"
-        )
-
-        // Asynchronously check each repository and return the first that contains the file
-        repositories.map { repo ->
-            async {
-                val fullPath = "$repo$filePath"
-                fullPath.takeIf { fileExists(it) }
-            }
-        }.awaitAll().firstOrNull { it != null }
-    }
-
-    private suspend fun fileExists(url: String): Boolean {
-        return try {
-            httpClient.head { url(url) }.status.isSuccess()
-        } catch (e: Exception) {
-            println("Error checking URL $url: ${e.message}")
-            false
-        }
     }
 
     private fun isLocalJarArtifact(file: File): Boolean {
