@@ -32,7 +32,7 @@ class BootstrapTask(
 ) {
     private val httpClient = HttpClient(CIO)
 
-    val runeliteArtifacts = listOf("trident", "discord", "substance", "gluegen", "jogl", "flatlaf", "rlawt", "jocl").toMutableList()
+    val runeliteArtifacts = listOf("trident", "discord", "substance", "gluegen", "jogl", "flatlaf", "rlawt", "jocl", "orange-extensions").toMutableList()
 
     fun fileNameContainsRuneliteArtifacts(fileName: String): Boolean {
         return runeliteArtifacts.any { fileName.contains(it, ignoreCase = true) }
