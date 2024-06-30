@@ -5,17 +5,15 @@ import com.google.gson.GsonBuilder
 import dev.openrune.settings.BootstrapPluginExtension
 import dev.openrune.upload.ftp.FTPUploader
 import dev.openrune.upload.github.GithubUploader
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import kotlinx.coroutines.*
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ResolvedArtifact
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import java.io.File
 import java.io.InputStream
 import java.security.MessageDigest
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.request.*
-import io.ktor.http.isSuccess
-import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.system.measureTimeMillis
 
