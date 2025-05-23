@@ -65,7 +65,7 @@ open class BootstrapPluginExtension(project: Project) {
      * @param action The action to configure GitHub upload settings.
      */
     fun github(action: GithubUploadSettings.() -> Unit) {
-        val githubUploadValue = githubUpload.orNull ?: GithubUploadSettings("", "")
+        val githubUploadValue = githubUpload.orNull ?: GithubUploadSettings("", "","client")
         githubUploadValue.apply(action)
         githubUpload.set(githubUploadValue)
     }

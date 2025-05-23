@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "dev.openrune"
-version = "1.6"
+version = "1.7"
 
 repositories {
     mavenCentral()
@@ -74,7 +74,7 @@ publishing {
     repositories {
 
         maven {
-            url = uri("$buildDir/repo")
+            url = uri("E:\\RSPS\\OpenRune\\hosting")
         }
         if (System.getenv("REPO_URL") != null) {
             maven {

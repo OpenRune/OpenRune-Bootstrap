@@ -1,6 +1,5 @@
 package dev.openrune.upload.github
 
-import dev.openrune.upload.ftp.FtpUploadSettings
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.errors.GitAPIException
 import org.eclipse.jgit.lib.ProgressMonitor
@@ -20,8 +19,7 @@ class GithubUploader(
     private val directoryPath: Path,
     private val storeInVersions: Boolean,
     private val clientVersion: String = "",
-    private val buildType: String,
-    private val subPaths: String = "client"
+    private val buildType: String
 ) {
     fun start() {
         try {
@@ -35,6 +33,8 @@ class GithubUploader(
                 exitProcess(0)
             }
 
+            logger.lifecycle("SubPaths: ${settings.subPath}")
+
             logger.lifecycle("Step 1: Connecting to GitHub and cloning the repository.")
             val tmpDir = Files.createTempDirectory("git_").toFile().apply { deleteOnExit() }
 
@@ -45,7 +45,7 @@ class GithubUploader(
                 .call()
 
             logger.lifecycle("Step 2: Gathering and copying files to the local clone.")
-            val subPathDir = File(tmpDir, "$subPaths/$buildType/")
+            val subPathDir = File(tmpDir, "${settings.subPath}/$buildType/")
 
             directoryPath.toFile().walk().forEach { file ->
                 if (file.isFile) {
